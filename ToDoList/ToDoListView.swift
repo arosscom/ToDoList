@@ -6,25 +6,75 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ToDoListView: View {
     
-    var toDos = ["Buy milk", "Learn SwiftUI", "Go for a walk", "Take a Vacation", "Learn SwiftData"]
+    @Query var toDos: [ToDo]
+    
+    @State private var sheetIsPresented: Bool = false
+    
+    @Environment(\.modelContext) private var modelContext
+    
     
     var body: some View {
         
         NavigationStack {
+            
             List {
-                
-                ForEach(toDos, id: \.self) { toDo in
-                    NavigationLink {
-                        DetailView(passedValue: toDo)                   }label: {
-                            Text(toDo)
+                ForEach(toDos) { toDo in
+                    HStack {
+                        
+                        Image(systemName: toDo.isCompleted ? "checkmark.rectangle" : "rectangle")
+                            .onTapGesture {
+                                toDo.isCompleted.toggle()
+                                guard let _ = try? modelContext.save() else {
+                                    print("Error - Delete  on DetailView failed")
+                                    return
+                                }
+                            }
+                        NavigationLink {
+                            DetailView(toDo: toDo)
+                        } label: {
+                            Text(toDo.item)
                         }
+                     }
+                    .font(.title2)
                 }
-                .navigationTitle(Text("To Do List "))
-                .navigationBarTitleDisplayMode(.automatic)
-                .listStyle(.plain)
+                .onDelete { indexSet in
+                    indexSet.forEach({ modelContext.delete(toDos[$0])})
+                    guard let _ = try? modelContext.save() else {
+                        print("Error - Delete  on DetailView failed")
+                        return
+                    }
+                    //                    .swipeActions {                                   // alternative delete for single item
+                    //                        Button("Delete", role: .destructive) {
+                    //                            modelContext.delete(toDo)
+                    //                            guard let _ = try? modelContext.save() else {
+                    //                                print("Error - Delete  on DetailView failed")
+                    //                                return
+                    //                            }
+                    //                        }
+                    //                    }
+                }
+            }
+            .navigationTitle(Text("To Do List "))
+            .navigationBarTitleDisplayMode(.automatic)
+            .listStyle(.plain)
+            .fullScreenCover(isPresented: $sheetIsPresented) {                                          // slides over a new black DetailView
+                NavigationStack {
+                    DetailView(toDo: ToDo())
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button  {
+                        sheetIsPresented.toggle()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    
+                }
             }
         }
     }
@@ -32,4 +82,6 @@ struct ToDoListView: View {
 
 #Preview {
     ToDoListView()
+        .modelContainer(for: ToDo.self, inMemory: true)
+    
 }

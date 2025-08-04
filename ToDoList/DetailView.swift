@@ -6,37 +6,89 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct DetailView: View {
- 
-    var passedValue: String
     
- //   @Environment(\.dismiss) private var dismiss                                         // needed to allow dismiss button
+    @State var toDo: ToDo
+    @State private var item = ""
+    @State private var reminderIsOn = true
+    @State private var dueDate = Calendar.current.date(byAdding: .day, value: 1, to: Date.now)!
+    @State private var notes = ""
+    @State private var isCompleted = false
+    
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        VStack {
+        
+        List {
+            TextField("Enter To Do Here", text: $item)
+                .font(.title)
+                .textFieldStyle(.roundedBorder)
+                .padding(.vertical)
+                .listRowSeparator(.hidden)
             
-            Image(systemName: "swift")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.orange)
+            Toggle("Set Reminder:", isOn: $reminderIsOn )
+                .padding(.top)
+                .listRowSeparator(.hidden)
             
-            Text("You are a Swifty Legend !\n Passed Value \(passedValue)")
-                .font(.largeTitle)
-                .multilineTextAlignment(.center)
+            DatePicker("Date:", selection: $dueDate)
+                .listRowSeparator(.hidden)
+                .padding(.bottom )
+                .disabled(!reminderIsOn)
+            
+            Text("Notes")
+                .padding(.top)
+            TextField("Notes", text: $notes, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .listRowSeparator(.hidden)
+            
+            Toggle("Completed", isOn: $isCompleted )
+                .padding(.top)
+                .listRowSeparator(.hidden)
         }
-        .padding()
-//        .navigationBarBackButtonHidden(true)
+        .listStyle(.plain)
+        .onAppear() {
+            item = toDo.item
+            reminderIsOn = toDo.reminderIsOn
+            dueDate = toDo.dueDate
+            notes = toDo.notes
+            isCompleted = toDo.isCompleted
+        }
         
-        Spacer()
-        
-//        Button("Get Back") {
-//            dismiss()
-//        }
-//        .buttonStyle(.borderedProminent)
+        .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") {
+                    dismiss()
+                    print("Cancel Tapped  ")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Save") {                                                                       // move data from local vars to toDo object
+                    toDo.item = item
+                    toDo.reminderIsOn = reminderIsOn
+                    toDo.dueDate = dueDate
+                    toDo.notes = notes
+                    toDo.isCompleted = isCompleted
+                    modelContext.insert(toDo)                                                          // save the data
+                    guard let _ = try? modelContext.save() else {
+                        print("Error - Save on DetailView failed")
+                        return
+                    }
+                    dismiss()
+                    print("Data Saved")
+                }
+            }
+        }
     }
 }
 
 #Preview {
-    DetailView(passedValue: "0")
+    NavigationStack {
+        DetailView(toDo: ToDo(item: "A", isCompleted: false))
+            .modelContainer(for: ToDo.self, inMemory: true)
+    }
+
 }
